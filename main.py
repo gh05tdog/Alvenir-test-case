@@ -3,11 +3,10 @@ import argparse
 import soundfile as sf
 import torch
 from datasets import load_dataset, Audio
+import random
 
 from transformers import Wav2Vec2CTCTokenizer, Wav2Vec2Tokenizer, Wav2Vec2Processor, \
     Wav2Vec2ForCTC
-
-
 
 # Initialize parser
 parser = argparse.ArgumentParser()
@@ -32,9 +31,10 @@ class handler:
     def Load_data(self):
         print("Loading data")
         dataset = load_dataset(self.data_path, split="test").cast_column("audio", Audio(decode=False))
-        return dataset
+        return dataset[random.randint(0, len(dataset))]
 
-    def transcribe(self, model_id, data_path):
+    def transcribe(self):
+        data = self.Load_data()
         print("Transcribing...")
 
         def load_model(model_path: str) -> Wav2Vec2ForCTC:
@@ -47,11 +47,11 @@ class handler:
             return Wav2Vec2Processor.from_pretrained(model_path)
 
         # Load model
-        model = load_model(model_id)
+        model = load_model(self.model_id)
         model.eval()
-        tokenizer = get_tokenizer(model_id)
-        processor = get_processor(model_id)
-        audio, _ = sf.read(data_path)
+        tokenizer = get_tokenizer(self.model_id)
+        processor = get_processor(self.model_id)
+        audio, _ = sf.read(data["audio"]["path"])
         input_values = processor(audio, return_tensors="pt", padding="longest", sampling_rate=16_000).input_values
         with torch.no_grad():
             logits = model(input_values).logits
@@ -59,12 +59,13 @@ class handler:
         predicted_ids = torch.argmax(logits, dim=-1)
         transcription = processor.batch_decode(predicted_ids)
         # Return transcription
-        return transcription
+        return transcription, data["sentence"]
 
     def compute_wer(self):
         print("Computing WER")
+        # TODO: Implement WER
 
 
 if __name__ == "__main__":
-    print(handler(args.model_id, args.data_path).Load_data()[1]["audio"]["path"])
-    #handler(args.model_id, args.data_path).transcribe(args.model_id, args.data_path)
+    computer, sentence = handler(args.model_id, args.data_path).transcribe()
+    print("The computer said: \" " + str(computer) + " \" and the sentence was: \" " + str(sentence) + " \"")
