@@ -1,12 +1,18 @@
+# Used for getting arguments from the command line
 import argparse
 
+# Used by the dataset builder and transcriber
 import soundfile as sf
 import torch
 from datasets import load_dataset, Audio
-import random
-
 from transformers import Wav2Vec2CTCTokenizer, Wav2Vec2Tokenizer, Wav2Vec2Processor, \
     Wav2Vec2ForCTC
+
+# Used to pick a random file from the dataset
+import random
+
+# Used to calculate the WER with the Levenshtein distance
+from jiwer import wer
 
 # Initialize parser
 parser = argparse.ArgumentParser()
@@ -54,18 +60,22 @@ class handler:
         audio, _ = sf.read(data["audio"]["path"])
         input_values = processor(audio, return_tensors="pt", padding="longest", sampling_rate=16_000).input_values
         with torch.no_grad():
-            logits = model(input_values).logits
+            logistics = model(input_values).logits
 
-        predicted_ids = torch.argmax(logits, dim=-1)
+        predicted_ids = torch.argmax(logistics, dim=-1)
         transcription = processor.batch_decode(predicted_ids)
         # Return transcription
         return transcription, data["sentence"]
 
     def compute_wer(self):
+        com, sen = handler(args.model_id, args.data_path).transcribe()
         print("Computing WER")
-        # TODO: Implement WER
+        wer_error = wer(com, sen)
+        return com, sen, wer_error
 
 
 if __name__ == "__main__":
-    computer, sentence = handler(args.model_id, args.data_path).transcribe()
-    print("The computer said: \" " + str(computer) + " \" and the sentence was: \" " + str(sentence) + " \"")
+    computer, sentence, error = handler(args.model_id, args.data_path).compute_wer()
+
+    print("The computer said: \" " + str(computer[0]) + " \" and the sentence was: \" " + str(sentence) + " \"" + "\n" \
+          + "The WER is: " + str(error))
