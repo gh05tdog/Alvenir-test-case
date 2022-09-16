@@ -15,7 +15,10 @@ import random
 from jiwer import wer
 
 # Initialize parser
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(
+    # To define the name of the defult values in --help
+formatter_class=argparse.ArgumentDefaultsHelpFormatter
+)
 
 # Adding optional argument
 parser.add_argument("--model_id", default="Alvenir/wav2vec2-base-da-ft-nst", help="Model ID")
